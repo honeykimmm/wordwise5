@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Wise 5 — 단어 학습</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0e0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WordWise5">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e14;
+    --surface: #16161f;
+    --surface2: #1e1e2e;
+    --border: #2a2a3e;
+    --accent: #7c6af7;
+    --accent2: #f7c86a;
+    --accent3: #6af7c8;
+    --text: #e8e8f0;
+    --text-dim: #7878a0;
+    --text-faint: #3a3a55;
+    --correct: #6af7c8;
+    --wrong: #f76a8a;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG decoration */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,106,247,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -150px; right: -150px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(106,247,200,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative; z-index: 10;
+    padding: 24px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .logo span { color: var(--accent2); }
+
+  /* ── MAIN WRAPPER ── */
+  .main { position: relative; z-index: 5; padding: 32px 24px; max-width: 820px; margin: 0 auto; }
+
+  /* ── STEP 1: DAY SELECT ── */
+  #screen-select { animation: fadeUp 0.4s ease; }
+
+  .screen-title {
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 1.8rem; font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .screen-sub { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 32px; }
+
+  .day-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px; margin-bottom: 32px;
+  }
+  .day-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 12px;
+    padding: 14px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .day-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+  .day-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px; }
+  .mode-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: center;
+  }
+  .mode-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+  .mode-card.selected { border-color: var(--accent); background: rgba(124,106,247,0.1); }
+  .mode-icon { font-size: 2rem; margin-bottom: 8px; }
+  .mode-name { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .mode-desc { color: var(--text-dim); font-size: 0.78rem; line-height: 1.4; }
+
+  .btn-start {
+    display: block; width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), #9b6af7);
+    border: none; border-radius: var(--radius);
+    color: #fff;
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 1.1rem; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 1px;
+  }
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,106,247,0.4); }
+  .btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── FLASHCARD ── */
+  #screen-flash { display: none; animation: fadeUp 0.4s ease; }
+
+  .progress-bar-wrap {
+    height: 4px; background: var(--surface2);
+    border-radius: 4px; margin-bottom: 28px; overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+
+  .card-counter {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem; color: var(--text-dim);
+    text-align: center; margin-bottom: 16px;
+  }
+
+  .flashcard-scene {
+    perspective: 1200px;
+    margin: 0 auto 24px;
+    height: 280px;
+    cursor: pointer;
+  }
+  .flashcard {
+    width: 100%; height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(.4,0,.2,1);
+  }
+  .flashcard.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; inset: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    backface-visibility: hidden;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px;
+    text-align: center;
+  }
+  .card-back { transform: rotateY(180deg); border-color: var(--accent); }
+  .card-label {
+    font-size: 0.72rem; font-family: 'Space Mono', monospace;
+    color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 20px;
+    padding: 4px 12px; border: 1px solid var(--text-faint); border-radius: 20px;
+  }
+  .card-content {
+    font-size: 1.5rem; font-weight: 700; line-height: 1.5;
+    font-family: 'Gmarket Sans', sans-serif;
+  }
+  .card-content.en { font-family: 'Space Mono', monospace; font-size: 1.6rem; color: var(--accent2); }
+  .card-hint { font-size: 0.8rem; color: var(--text-dim); margin-top: 16px; }
+  .card-tap { font-size: 0.75rem; color: var(--text-faint); margin-top: 24px; }
+
+  .flash-controls { display: flex; gap: 12px; justify-content: center; }
+  .btn-icon {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 50px;
+    padding: 12px 24px;
+    cursor: pointer;
+    font-family: 'Gmarket Sans', sans-serif;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-icon.danger:hover { border-color: var(--wrong); color: var(--wrong); }
+  .btn-icon.success:hover { border-color: var(--correct); color: var(--correct); }
+
+  /* direction toggle */
+  .direction-toggle {
+    display: flex; gap: 8px; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .dir-btn {
+    padding: 6px 16px;
+    border-radius: 20px; font-size: 0.78rem;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer; transition: all 0.2s;
+  }
+  .dir-btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(247,200,106,0.1); }
+
+  /* ── TYPING TEST ── */
+  #screen-type { display: none; animation: fadeUp 0.4s ease; }
+
+  .type-prompt {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .prompt-label { font-size: 0.72rem; font-family: 'Space Mono', monospace; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 16px; }
+  .prompt-text { font-size: 1.5rem; font-weight: 700; font-family: 'Gmarket Sans', sans-serif; line-height: 1.5; }
+  .prompt-text.en { font-family: 'Space Mono', monospace; font-size: 1.6rem; color: var(--accent2); }
+
+  .type-input-wrap { position: relative; margin-bottom: 16px; }
+  .type-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 56px 16px 20px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .type-input:focus { border-color: var(--accent); }
+  .type-input.correct-anim { border-color: var(--correct); background: rgba(106,247,200,0.05); }
+  .type-input.wrong-anim { border-color: var(--wrong); background: rgba(247,106,138,0.05); animation: shake 0.3s ease; }
+
+  .submit-btn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: var(--accent);
+    border: none; border-radius: 8px;
+    color: #fff; width: 36px; height: 36px;
+    cursor: pointer; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .submit-btn:hover { background: #9b6af7; }
+
+  .feedback {
+    min-height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 700;
+    font-family: 'Gmarket Sans', sans-serif;
+    border-radius: 12px; padding: 12px 20px;
+    margin-bottom: 16px;
+    transition: all 0.3s;
+  }
+  .feedback.correct { background: rgba(106,247,200,0.1); color: var(--correct); border: 1px solid rgba(106,247,200,0.3); }
+  .feedback.wrong { background: rgba(247,106,138,0.1); color: var(--wrong); border: 1px solid rgba(247,106,138,0.3); }
+  .feedback.hint {
+    background: rgba(247,200,106,0.1); color: var(--accent2);
+    border: 1px solid rgba(247,200,106,0.3);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.95rem; letter-spacing: 1px;
+    word-break: break-all; white-space: pre;
+  }
+  .feedback.hidden { opacity: 0; }
+
+  .type-controls { display: flex; gap: 10px; justify-content: center; }
+
+  /* ── RESULTS ── */
+  #screen-result { display: none; animation: fadeUp 0.4s ease; text-align: center; }
+  .result-circle {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    border: 4px solid var(--accent);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin: 0 auto 24px;
+    background: rgba(124,106,247,0.08);
+    box-shadow: 0 0 40px rgba(124,106,247,0.2);
+  }
+  .result-score { font-family: 'Space Mono', monospace; font-size: 2.2rem; font-weight: 700; color: var(--accent); }
+  .result-label { font-size: 0.72rem; color: var(--text-dim); letter-spacing: 1px; }
+  .result-msg { font-family: 'Gmarket Sans', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+  .result-sub { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 32px; }
+
+  .wrong-list { text-align: left; background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 28px; }
+  .wrong-list h3 { font-size: 0.8rem; font-family: 'Space Mono', monospace; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 14px; }
+  .wrong-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  .wrong-item:last-child { border-bottom: none; }
+  .wrong-kr { color: var(--text-dim); }
+  .wrong-en { font-family: 'Space Mono', monospace; color: var(--accent2); }
+
+  .result-btns { display: flex; gap: 12px; justify-content: center; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes shake { 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-8px); } 75%{ transform:translateX(8px); } }
+
+  /* ── NAV ── */
+  .top-nav {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 28px;
+  }
+  .back-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 50px;
+    padding: 8px 18px; font-size: 0.82rem; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-info { font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--text-dim); }
+
+  @media (max-width: 600px) {
+    .day-grid { grid-template-columns: repeat(4,1fr); }
+    .mode-grid { grid-template-columns: 1fr; }
+    .flashcard-scene { height: 240px; }
+    .card-content { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">WORD<span>WISE</span> 5</div>
+  <div style="font-size:0.75rem; color:var(--text-dim); font-family:'Space Mono',monospace;">Day 01 – 25</div>
+</header>
+
+<div class="main">
+
+  <!-- ── SCREEN 1: SELECT ── -->
+  <div id="screen-select">
+    <div class="screen-title">오늘 공부할 Day를 선택해요</div>
+    <div class="screen-sub">Day를 고르고 학습 모드를 선택하세요</div>
+
+    <div class="day-grid" id="day-grid"></div>
+
+    <div class="screen-title" style="font-size:1.2rem; margin-bottom:16px;">학습 모드</div>
+    <div class="mode-grid">
+      <div class="mode-card" id="mode-flash" onclick="selectMode('flash')">
+        <div class="mode-icon">🃏</div>
+        <div class="mode-name">플래시카드</div>
+        <div class="mode-desc">카드를 뒤집어 뜻을 확인하며<br>자기 자신을 채점해요</div>
+      </div>
+      <div class="mode-card" id="mode-type" onclick="selectMode('type')">
+        <div class="mode-icon">⌨️</div>
+        <div class="mode-name">타이핑 테스트</div>
+        <div class="mode-desc">뜻을 보고 영단어를<br>직접 입력해서 확인해요</div>
+      </div>
+    </div>
+
+    <button class="btn-start" id="start-btn" disabled onclick="startStudy()">시작하기 →</button>
+  </div>
+
+  <!-- ── SCREEN 2: FLASHCARD ── -->
+  <div id="screen-flash">
+    <div class="top-nav">
+      <button class="back-btn" onclick="goHome()">← 홈</button>
+      <span class="nav-info" id="flash-nav-info"></span>
+    </div>
+
+    <div class="direction-toggle">
+      <button class="dir-btn active" id="dir-kr" onclick="setDirection('kr')">한→영</button>
+      <button class="dir-btn" id="dir-en" onclick="setDirection('en')">영→한</button>
+    </div>
+
+    <div class="progress-bar-wrap"><div class="progress-bar" id="flash-progress"></div></div>
+    <div class="card-counter" id="flash-counter"></div>
+
+    <div class="flashcard-scene" onclick="flipCard()">
+      <div class="flashcard" id="flashcard">
+        <div class="card-face card-front">
+          <div class="card-label" id="front-label">문제</div>
+          <div class="card-content" id="front-content"></div>
+          <div class="card-tap">탭하여 정답 확인 ↓</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-label">정답</div>
+          <div class="card-content" id="back-content"></div>
+          <div class="card-hint" id="back-hint"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flash-controls">
+      <button class="btn-icon danger" onclick="markCard(false)">✗ 몰랐어요</button>
+      <button class="btn-icon" onclick="shuffleAndRestart()">🔀 섞기</button>
+      <button class="btn-icon success" onclick="markCard(true)">✓ 알았어요</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: TYPING TEST ── -->
+  <div id="screen-type">
+    <div class="top-nav">
+      <button class="back-btn" onclick="goHome()">← 홈</button>
+      <span class="nav-info" id="type-nav-info"></span>
+    </div>
+
+    <div class="direction-toggle">
+      <button class="dir-btn active" id="tdir-kr" onclick="setTypeDirection('kr')">한→영 (영단어 입력)</button>
+      <button class="dir-btn" id="tdir-en" onclick="setTypeDirection('en')">영→한 (한글 입력)</button>
+    </div>
+
+    <div class="progress-bar-wrap"><div class="progress-bar" id="type-progress"></div></div>
+    <div class="card-counter" id="type-counter"></div>
+
+    <div class="type-prompt">
+      <div class="prompt-label" id="type-prompt-label">문제</div>
+      <div class="prompt-text" id="type-prompt-text"></div>
+    </div>
+
+    <div class="type-input-wrap">
+      <input class="type-input" id="type-input" placeholder="정답을 입력하세요..."
+        onkeydown="handleTypeKey(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button class="submit-btn" onclick="checkAnswer()">↵</button>
+    </div>
+
+    <div class="feedback hidden" id="type-feedback"></div>
+
+    <div class="type-controls">
+      <button class="btn-icon" onclick="skipWord()">⏭ 건너뛰기</button>
+      <button class="btn-icon" id="btn-first-letter" onclick="showFirstLetter()">🔤 첫 글자</button>
+      <button class="btn-icon" onclick="showHint()">💡 힌트</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: RESULT ── -->
+  <div id="screen-result">
+    <div class="top-nav" style="justify-content:center;">
+      <button class="back-btn" onclick="goHome()">← 홈으로</button>
+    </div>
+    <div class="result-circle">
+      <div class="result-score" id="result-score"></div>
+      <div class="result-label">정답률</div>
+    </div>
+    <div class="result-msg" id="result-msg"></div>
+    <div class="result-sub" id="result-sub"></div>
+
+    <div class="wrong-list" id="wrong-list" style="display:none;">
+      <h3>틀린 단어 복습 📋</h3>
+      <div id="wrong-items"></div>
+    </div>
+
+    <div class="result-btns">
+      <button class="btn-icon" onclick="retryWrong()">🔁 틀린 것만 다시</button>
+      <button class="btn-icon" onclick="goHome()">🏠 처음으로</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// WORD DATA  (Day 01 ~ Day 25) — Word Wise 5
+// ─────────────────────────────────────────────
+const VOCAB = {
+  1: [
+    {en:"notify",kr:"통지하다, 알리다"},
+    {en:"idle",kr:"일을 쉬고 있는, 한가한; 사용[가동]중이 아닌; 게으른, 일을 기피하는"},
+    {en:"peel",kr:"껍질을 벗기다"},
+    {en:"outbreak",kr:"(질병, 전쟁 등의) 돌발, 돌연한 발생"},
+    {en:"release",kr:"내보내다, 방출하다; 공개하다, 발표하다"},
+    {en:"seek",kr:"찾다, 구하다, 추구하다"},
+    {en:"bond",kr:"유대(감), 결속(감)"},
+    {en:"bizarre",kr:"별난, 괴상한"},
+    {en:"despair",kr:"절망, 낙담"},
+    {en:"submit",kr:"제출하다"},
+    {en:"nuclear",kr:"핵의, 핵무기의, 핵무기를 가진"},
+    {en:"consume",kr:"소비하다; 먹어 치우다"},
+    {en:"reveal",kr:"드러내다; 폭로하다"},
+    {en:"reform",kr:"개혁, 혁신, 개선; 개혁하다, 개선하다"},
+    {en:"slender",kr:"날씬한, 늘씬한; 빈약한, 충분하지 않은"},
+    {en:"autonomy",kr:"자율성, 자발성, 자기주도"},
+    {en:"conservative",kr:"보수적인, 변화를 싫어하는"},
+    {en:"astonish",kr:"(몹시) 놀라게 하다"},
+    {en:"emerge",kr:"드러나다, 서서히 출현하다"},
+    {en:"flaw",kr:"흠, 손상; 결함; 오류"},
+    {en:"virtue",kr:"미덕, 덕목; 장점, 이점"},
+    {en:"supervise",kr:"감독하다, 관리하다"},
+    {en:"worldwide",kr:"세계적인"},
+    {en:"legacy",kr:"(과거로부터 전해 내려오는) 전통, (후대에게 남기는) 유산"},
+    {en:"precise",kr:"정확한, 정밀한; 꼼꼼한, 정교한"},
+  ],
+  2: [
+    {en:"excel",kr:"뛰어나다, 탁월하다"},
+    {en:"foster",kr:"장려하다, 발전시키다; 잠시 맡아 기르는"},
+    {en:"prompt",kr:"즉각적인, 신속한; 유발하다, 촉발하다"},
+    {en:"brutal",kr:"잔인한, 폭력적인; 가혹한, 혹독한"},
+    {en:"absorb",kr:"빨아들이다, 흡수하다; (정보를) 받아들이다, 이해하다"},
+    {en:"stimulate",kr:"자극하다; 유발하다"},
+    {en:"evolve",kr:"(오랜 시간에 걸쳐) 진화하다, 변화하다, 발전하다"},
+    {en:"arrest",kr:"체포하다; 체포"},
+    {en:"hybrid",kr:"혼합의; (사람이) 혼혈의, (동식물이) 잡종의; 혼합, 결합, 잡종"},
+    {en:"sour",kr:"신맛이 나는, 시큼한"},
+    {en:"interfere",kr:"(~에) 간섭[참견]하다; (~을) 방해하다"},
+    {en:"reproduce",kr:"생식하다, 번식하다; 복제하다, 재현하다"},
+    {en:"swing",kr:"흔들다"},
+    {en:"burglar",kr:"강도, 도둑"},
+    {en:"scar",kr:"흉터; 마음의 상처"},
+    {en:"convention",kr:"사회적 규범, 관례; 총회, 대회; 협약, 조약"},
+    {en:"deed",kr:"행위, 행동"},
+    {en:"flourish",kr:"번창하다, 왕성하게 발전하다; 잘 자라다, 쑥쑥 크다"},
+    {en:"contradict",kr:"반박하다; 상반되다, 서로 모순되다"},
+    {en:"mutual",kr:"공동의, 상호간의"},
+    {en:"stake",kr:"투자한 몫, 지분; 내기[도박]의 판돈"},
+    {en:"disorder",kr:"무질서, 혼란; 장애, 건강상의 이상"},
+    {en:"tenant",kr:"세입자, 임차인"},
+    {en:"obligation",kr:"의무, 책임"},
+    {en:"genuine",kr:"진품의; 진짜의, 진실된"},
+  ],
+  3: [
+    {en:"burst",kr:"갑자기 터지다; 터질 듯 차오르다; 터뜨리다"},
+    {en:"await",kr:"기다리다, 고대하다"},
+    {en:"strategy",kr:"전략"},
+    {en:"troop",kr:"군대; (함께 이동하는) 무리; 무리 지어 우르르 이동하다"},
+    {en:"regulate",kr:"규제하다, 통제하다; 조절하다"},
+    {en:"overwhelm",kr:"(감당할 수 없을 정도로) 압도하다, 제압하다"},
+    {en:"enroll",kr:"등록하다"},
+    {en:"candidate",kr:"후보(자); 지원자"},
+    {en:"innate",kr:"타고난, 선천적인"},
+    {en:"durable",kr:"내구성 강한, 튼튼한"},
+    {en:"obvious",kr:"명백한, 너무 명확해서 쉽게 알 수 있는, 아주 당연한"},
+    {en:"viral",kr:"(바이러스가 퍼지듯) 빠르게 입소문이 나는, 온라인상에서 급속 확산되는"},
+    {en:"deliberate",kr:"고의의, 계획적인; 신중한, 사려 깊은"},
+    {en:"cope",kr:"대처하다, 헤쳐 나가다, 극복하다"},
+    {en:"compact",kr:"아담한, 작은; 간결한"},
+    {en:"inspect",kr:"(안전·규정 준수를 위해) 검사[사찰]하다, 꼼꼼히 살펴보다"},
+    {en:"fund",kr:"기금, 자금; 자금[재정]을 지원하다"},
+    {en:"slang",kr:"비속어"},
+    {en:"wilderness",kr:"미개척지, 황무지, (사람이 살지 않는) 야생의 지역"},
+    {en:"ethics",kr:"(어떤 집단의) 도덕규범, 윤리 원칙; 윤리학"},
+    {en:"vomit",kr:"토하다; 구토"},
+    {en:"postpone",kr:"연기하다, 미루다"},
+    {en:"leap",kr:"펄쩍 뛰어오르다, 도약하다"},
+    {en:"moderate",kr:"(양·정도가) 적당한, 중간 정도의; 온화한; 온건한"},
+    {en:"summary",kr:"요약, 개요"},
+  ],
+  4: [
+    {en:"constitute",kr:"구성하다, 이루다"},
+    {en:"fabulous",kr:"굉장히 멋진, 환상적인"},
+    {en:"concrete",kr:"구체적인, 명확한"},
+    {en:"affair",kr:"(개인의) 일, 사건; (사회·정치·국제) 문제"},
+    {en:"inevitable",kr:"필연적인, 불가피한"},
+    {en:"neglect",kr:"(의무·돌봄 등을) 소홀히 하다"},
+    {en:"grieve",kr:"(죽음·상실을) 슬퍼하다, 애도하다; 몹시 괴로워하다"},
+    {en:"plague",kr:"전염병, 역병; 오랫동안 지속적으로 괴롭히다"},
+    {en:"stink",kr:"악취가 나다, 냄새가 고약하다"},
+    {en:"cast",kr:"(세게 혹은 멀리) 던지다, 보내다; (표를) 던지다; (배우에게) 배역을 정하다, 캐스팅하다"},
+    {en:"abstract",kr:"추상적인, 관념적인"},
+    {en:"harsh",kr:"혹독한, 가혹한, 거친, 냉혹한"},
+    {en:"bias",kr:"편견, (특정 가치·집단 쪽으로 치우친) 편향"},
+    {en:"dwell",kr:"(특정 장소에 오래) 살다, 거주하다"},
+    {en:"premature",kr:"너무 이른, 성급한, 시기상조의"},
+    {en:"sob",kr:"흐느끼며 울다"},
+    {en:"fundamental",kr:"밑바탕이 되는, 근본적인; 없어서는 안 되는"},
+    {en:"splendid",kr:"멋진, 근사한, 눈부시게 훌륭한"},
+    {en:"era",kr:"연대, 시대"},
+    {en:"frown",kr:"(~에) 눈살을 찌푸리다, 바람직하지 않게 바라보다"},
+    {en:"resolve",kr:"해결[해소]하다, 매듭짓다; 결심하다"},
+    {en:"poll",kr:"여론조사, 설문조사; (선거에서의) 투표; 투표소"},
+    {en:"simultaneously",kr:"동시에"},
+    {en:"undergo",kr:"(변화·과정·어려움 등을) 겪다"},
+    {en:"restore",kr:"(원래 상태로) 되돌리다, 복구하다, 복원하다"},
+  ],
+  5: [
+    {en:"let ~ down",kr:"~를 실망시키다, ~의 기대를 저버리다"},
+    {en:"see red",kr:"몹시 화가 나다, 격분하다"},
+    {en:"blow up",kr:"폭발하다; 폭발시키다; (풍선 등을) 부풀리다"},
+    {en:"let off steam",kr:"화를 풀다, 스트레스를 풀다"},
+    {en:"put up with",kr:"(불쾌한, 힘든 일 등을) 참다, 견디다"},
+    {en:"stand up",kr:"기다리게 하다, 바람맞히다"},
+    {en:"come across",kr:"(주로 물건·아이디어 등을) 우연히 발견하다[마주치다]; ~인상을 주다, ~하게 보이다"},
+    {en:"run across",kr:"(사람·물건을) 우연히 발견하다[마주치다]"},
+    {en:"get across",kr:"(생각·의견 등을) 이해시키다, 전달하다; (강·도로 등을) 힘들게 건너다, 넘어가다"},
+    {en:"see things",kr:"환각을 보다, 헛것을 보다"},
+    {en:"break up",kr:"(~와) 헤어지다; 해산하다"},
+    {en:"cut across",kr:"지름길로 가다, 가로질러 가다"},
+    {en:"keep up with",kr:"~을 따라잡다, 뒤처지지 않다"},
+    {en:"come up with",kr:"~을 생각해내다, 고안하다"},
+    {en:"see the point of",kr:"~의 의미를[필요성을] 알다"},
+    {en:"back up",kr:"지지하다, 후원하다; 후진하다"},
+    {en:"let go of",kr:"~을 놓아주다; (마음에서) 놓아버리다, 떨쳐내다"},
+    {en:"go along with",kr:"~에 동의하다, 따르다"},
+    {en:"deal with",kr:"(문제 등을) 처리하다, 해결하다; ~을 상대하다; (주제·문제를) 다루다"},
+    {en:"let bygones be bygones",kr:"지나간 일은 지나간 일로 두다, 과거의 일은 잊어버리다"},
+    {en:"see the light",kr:"이해하다, 깨우치다"},
+    {en:"see stars",kr:"(머리를 세게 부딪쳐) 눈앞에 별이 보이다, 순간 눈앞이 아찔해지다"},
+    {en:"see to it that",kr:"반드시 ~하도록 책임지고 처리하다"},
+    {en:"see eye to eye",kr:"(~와) 견해가 일치하다"},
+    {en:"mess with",kr:"~을 건드리다, 방해하다"},
+    {en:"let loose",kr:"(억눌린 것을) 터뜨리다, 자유롭게 표현하다; 자유롭게 풀어주다, 해방시키다"},
+    {en:"provide A with B",kr:"A에게 B를 제공하다"},
+    {en:"catch up with",kr:"~을 따라잡다; (오랜만에 만나서) ~와 밀린 얘기를 나누다"},
+  ],
+  6: [
+    {en:"descend",kr:"내려가다, 하강하다; 몰락하다, 변질되다; ~의 혈통[후손]이다"},
+    {en:"agony",kr:"고통, 고뇌"},
+    {en:"inherent",kr:"선천적인, 본래부터 있는, 내재된"},
+    {en:"vow",kr:"맹세하다, 서약하다; 맹세, 서약"},
+    {en:"attorney",kr:"변호사, 법정 대리인"},
+    {en:"barren",kr:"메마른, 척박한; 불임의, 불모의"},
+    {en:"patriot",kr:"애국자"},
+    {en:"diplomacy",kr:"외교; 외교술, 협상력"},
+    {en:"expire",kr:"만료되다, 만기가 되다"},
+    {en:"betray",kr:"배신하다, 배반하다"},
+    {en:"option",kr:"선택(권), 선택지"},
+    {en:"orbit",kr:"궤도; 궤도를 돌다, ~을 중심으로 돌다"},
+    {en:"statistics",kr:"(일반적 의미의) 통계, 자료; 통계학"},
+    {en:"melt",kr:"녹다; 행복으로 사르르 녹다; 녹이다; 감동시키다"},
+    {en:"transition",kr:"변화, 전환; 바뀌다, 전환하다"},
+    {en:"revenge",kr:"복수, 보복; 보복하다"},
+    {en:"applaud",kr:"박수 치다; 지지하다, 칭찬하다"},
+    {en:"speculate",kr:"추측하다, 예측하다"},
+    {en:"wage",kr:"임금, 급료"},
+    {en:"sin",kr:"죄, 죄악"},
+    {en:"fake",kr:"가짜의, 위조된, 거짓인; 모조품, 위조품; 사기꾼"},
+    {en:"confess",kr:"자백[고백]하다, 인정하다"},
+    {en:"peninsula",kr:"반도"},
+    {en:"isolate",kr:"고립시키다, 격리하다"},
+    {en:"collapse",kr:"(건물이) 무너지다, 붕괴하다; 기절하다; (경제·체제가) 붕괴하다; 파산하다"},
+  ],
+  7: [
+    {en:"leak",kr:"(액체가) 새다; (비밀·정보 등이) 새다, 유출되다; 유출시키다; 누출; 누설"},
+    {en:"blink",kr:"눈을 깜박이다; (불빛이) 깜박이다, 반짝이다; 깜박임"},
+    {en:"deserve",kr:"~을 마땅히 받을 만하다, ~할 자격이 있다"},
+    {en:"fort",kr:"요새, 성채"},
+    {en:"dreadful",kr:"아주 나쁜, 끔찍한; 지독한; 무서운, 공포스러운"},
+    {en:"herd",kr:"(큰 초식 포유류) 떼, 무리; 인파, 군중"},
+    {en:"enhance",kr:"높이다, 향상시키다"},
+    {en:"publicity",kr:"언론의 보도; 대중의 관심; 홍보 (효과)"},
+    {en:"exhale",kr:"(숨을) 내쉬다"},
+    {en:"reserve",kr:"남겨두다, 보류하다; 예약하다, 지정하다; 매장량; 비축량; 보호구역"},
+    {en:"tempt",kr:"유혹하다, 현혹하다, 꼬드기다"},
+    {en:"odor",kr:"(주로 강하게 느껴지는) 냄새"},
+    {en:"significant",kr:"중대한, 의미 있는; 상당히 많은"},
+    {en:"reservoir",kr:"저수지; 저장소"},
+    {en:"smooth",kr:"(표면이) 매끄러운; (말투·태도가) 부드러운; 원활한, 순조로운"},
+    {en:"colony",kr:"식민지; (무리를 이루어 사는) 군락, 군집"},
+    {en:"curse",kr:"저주; 욕설, 악담"},
+    {en:"primitive",kr:"원시 시대의; 원시적인, 초기 단계의; 원초적인, 본능적인"},
+    {en:"portray",kr:"그리다, 묘사하다"},
+    {en:"gaze",kr:"응시하다, 뚫어져라 보다"},
+    {en:"fabric",kr:"천, 직물; 구조, 기틀"},
+    {en:"conference",kr:"(대규모의, 학술적인) 회의, 컨퍼런스"},
+    {en:"modest",kr:"겸손한, 자만하지 않는; 소박한, 수수한; (액수·양이) 그다지 크지 않은"},
+    {en:"appliance",kr:"가전제품, 전자기기; (특정 용도의) 기기, 장비"},
+    {en:"interact",kr:"교류하다, 소통하다; 상호작용하다"},
+  ],
+  8: [
+    {en:"certificate",kr:"증명서, 수료증, 자격증"},
+    {en:"fertile",kr:"기름진, 비옥한; 임신할 수 있는, 생식능력이 있는"},
+    {en:"savage",kr:"잔인한; 사나운; 극심한"},
+    {en:"investigate",kr:"조사하다, 살펴보다"},
+    {en:"splash",kr:"(물 등이) 튀다, 첨벙거리다; (물을) 튀기다"},
+    {en:"foul",kr:"반칙; (냄새가) 불쾌한; 불결한, 더러운"},
+    {en:"vice",kr:"악덕, 부도덕한 행위; 나쁜 버릇[습관]; (개인적인) 결점, 약점"},
+    {en:"endure",kr:"(오랜 시간) 참다, 견디다; 지속되다, 오래 가다"},
+    {en:"peculiar",kr:"특이한, 독특한; 고유한, 특유의"},
+    {en:"acid",kr:"신맛이 나는; 신랄한, 날카로운; 산(酸)"},
+    {en:"abandon",kr:"버리다, 유기하다; 방치하다; 포기하다, 단념하다"},
+    {en:"deceit",kr:"사기, 속임수"},
+    {en:"differ",kr:"다르다, 의견이 다르다"},
+    {en:"extraordinary",kr:"비범한, 엄청난, 놀라운"},
+    {en:"wholesale",kr:"도매(상)의, 대량 판매의; 도매로, 대량으로"},
+    {en:"renowned",kr:"(~로) 명성이 높은, 평판이 자자한"},
+    {en:"motivate",kr:"~에게 동기를 부여하다, 의욕을 북돋우다"},
+    {en:"refer",kr:"언급하다, ~에 대해 말하다; 참조하다, 참고하다; ~을 가리키다"},
+    {en:"notorious",kr:"(~로) 악명 높은, (나쁜 일로) 유명한"},
+    {en:"ally",kr:"동맹국, 동맹자; 동맹을 맺다, 연합하다"},
+    {en:"budget",kr:"예산, 지출계획"},
+    {en:"contaminate",kr:"오염시키다"},
+    {en:"overall",kr:"대체로, 전반적으로; 전체적인, 종합적인"},
+    {en:"cuisine",kr:"(특정 지역·국가의) 음식문화; 요리법"},
+    {en:"pinch",kr:"꼬집다; 꼬집기; 한 꼬집"},
+  ],
+  9: [
+    {en:"extract",kr:"뽑아내다; 추출하다; 채굴하다; 발췌하다; 추출물; 농축액; 발췌문"},
+    {en:"emit",kr:"(기체·열·빛 등을) 내뿜다, 발산하다"},
+    {en:"nominate",kr:"후보로 지명[추천]하다; (공직에) 임명하다"},
+    {en:"bait",kr:"미끼; 현혹하기 위한 수단"},
+    {en:"arise",kr:"(자연스럽게) 발생하다, 생겨나다"},
+    {en:"retire",kr:"퇴직하다, 은퇴하다"},
+    {en:"permanent",kr:"영구적인, 오래가는"},
+    {en:"eclipse",kr:"일식, 월식; (빛을 가리듯 ~의 존재감을) 가리다, 무색하게 하다"},
+    {en:"sustain",kr:"지속하다, 유지하다; (피해·상처 등을) 입다, 당하다; 떠받치다, 지탱시키다"},
+    {en:"trivial",kr:"하찮은, 사소한"},
+    {en:"outcome",kr:"결과, 결말, 성과"},
+    {en:"reverse",kr:"(위치·방향 등을) 거꾸로 하다; 되돌리다, 번복하다, 철회하다"},
+    {en:"prospect",kr:"(미래·성공에 대한) 전망, 가망, (희망적) 가능성, 기대"},
+    {en:"slap",kr:"(손바닥으로) 찰싹 때리다, 탁 치다"},
+    {en:"forefather",kr:"(국가·문화·집단의) 선조, 조상"},
+    {en:"qualify",kr:"자격요건상 지원[응시] 가능하다; 자격요건·능력을 충족시켜 주다"},
+    {en:"celebrity",kr:"유명인사, 연예인"},
+    {en:"skeptical",kr:"회의적인, 의심 많은, 잘 믿지 않는"},
+    {en:"gracious",kr:"(태도·말투가) 정중하고 친절한; 겸손한; (장소·건물이) 우아한"},
+    {en:"demolish",kr:"(건물 등을) 철거하다, 무너뜨리다; (시합에서) 완패시키다, 박살내다"},
+    {en:"upgrade",kr:"기존보다 나은 상태로 올리다, 업그레이드 하다"},
+    {en:"position",kr:"자리, 장소, 위치; 입장, 태도, 의견; 직책, 일자리"},
+    {en:"logic",kr:"논리, 이치; 논리학"},
+    {en:"conquer",kr:"정복하다; 이기다; 극복하다"},
+    {en:"alert",kr:"경계를 늦추지 않는; 정신이 또렷한; (위험을) 즉각 알리다; 경보; 경계 태세"},
+  ],
+  10: [
+    {en:"show someone around",kr:"~에게 안내를 해주다, ~를 데리고 다니며 보여주다"},
+    {en:"get around",kr:"(장소를) 돌아다니다; (소문 등이) 퍼지다; (문제·법 등을) 빠져나가다"},
+    {en:"look into",kr:"조사하다, 알아보다"},
+    {en:"look the other way",kr:"모른 척하다, 못 본 척하다"},
+    {en:"look for",kr:"~을 찾다"},
+    {en:"look good on",kr:"~에게 잘 어울리다"},
+    {en:"ask around",kr:"주변에 물어보고 다니다, 수소문하다"},
+    {en:"look ~ in the eye",kr:"~의 눈을 똑바로 쳐다보다"},
+    {en:"hang around",kr:"~와 어울려 다니다, (별 목적 없이) 어슬렁거리다, 배회하다"},
+    {en:"look back on",kr:"회상하다"},
+    {en:"mess[fool] around",kr:"놀면서[장난하면서] 빈둥거리다"},
+    {en:"look around",kr:"(주변을) 둘러보다"},
+    {en:"look after",kr:"~를 돌보다, 보살피다"},
+    {en:"look up",kr:"(정보 등을) 찾아보다; (상황이) 나아지다, 호전되다"},
+    {en:"stick around",kr:"안 가고 기다리다, 그곳에 남아 있다"},
+    {en:"look up to",kr:"~를 존경하다"},
+    {en:"look great in",kr:"(옷·색깔이) 잘 어울리다"},
+    {en:"turn around",kr:"뒤돌아서다, 뒤돌아보다; (상황을) 반전시키다"},
+    {en:"look like",kr:"~처럼 보이다"},
+    {en:"look at",kr:"~을 보다, 주목하다"},
+    {en:"look out (for)",kr:"(~을) 조심하다, 주의하다"},
+    {en:"come around",kr:"(의식이) 돌아오다; (시기가) 돌아오다; 마음이 바뀌다; (집에) 들르다"},
+    {en:"look down on",kr:"~를 깔보다, 무시하다"},
+    {en:"look forward to",kr:"~하기를 고대하다"},
+  ],
+  11: [
+    {en:"wrinkle",kr:"주름; 주름지다; 구기다, 주름지게 하다, 찡그리다"},
+    {en:"sprain",kr:"(발목, 손목 등을) 삐다, 접질리다; 인대 손상, 접질림"},
+    {en:"severe",kr:"극심한, 심각한; 엄격한, 가혹한"},
+    {en:"territory",kr:"영토, 영역"},
+    {en:"indispensable",kr:"없어선 안 되는, 매우 중요한, 대체 불가능한"},
+    {en:"shrink",kr:"줄어들다, 작아지다; 움츠러들다"},
+    {en:"diagnose",kr:"(병을) 진단하다, (문제의 원인을) 판단하다"},
+    {en:"prosper",kr:"번영하다, 번창하다, 잘되다"},
+    {en:"chronicle",kr:"연대기, 역사적 기록; (사건을) 시간 순으로 기록하다, 자세히 서술하다"},
+    {en:"chronic",kr:"(병·문제 등이) 만성인, 오래 지속되는; 상습적인, 계속 반복되는"},
+    {en:"prior",kr:"사전의, 앞서 있었던"},
+    {en:"insight",kr:"통찰, 깊이 있는 식견, 깨달음"},
+    {en:"victim",kr:"피해자, 희생자"},
+    {en:"fierce",kr:"사나운, 맹렬한; 치열한, 격렬한"},
+    {en:"furnish",kr:"(가구를) 갖추다, 비치하다; 제출하다, 제공하다"},
+    {en:"patrol",kr:"순찰을 돌다; 순찰대; 순찰, 방범 활동"},
+    {en:"method",kr:"방법, 방식"},
+    {en:"rip",kr:"째다, 찢다; 찢어지다"},
+    {en:"handy",kr:"유용한, 실용적인; (사람이) 손재주가 좋은; 가까이 있는, 손닿는 곳에 있는"},
+    {en:"sting",kr:"찌르다, 쏘다; (곤충의) 침, 가시; 따가움, 쓰라림"},
+    {en:"negotiate",kr:"~을 협상하다; 협상하다, 교섭하다"},
+    {en:"boundary",kr:"경계, 경계선"},
+    {en:"glance",kr:"흘끗 보다, 재빨리 보다; 흘끗 봄"},
+    {en:"apparent",kr:"명백한, 분명한; 외견상의, 겉으로 보이는"},
+    {en:"entitle",kr:"자격을[권리를] 주다"},
+  ],
+  12: [
+    {en:"relevant",kr:"(~에) 관련이 있는; 적절한, 중요한"},
+    {en:"asset",kr:"자산; 인적 자산, 재원; 유용한 자질, 강점"},
+    {en:"boom",kr:"급성장하다, 호황을 맞다; 급성장, 호황"},
+    {en:"immediate",kr:"즉각적인, 즉시의; (거리상) 아주 가까운"},
+    {en:"label",kr:"라벨, 상표; 꼬리표; ~에 라벨을 붙이다; ~라고 낙인을 찍다"},
+    {en:"oppose",kr:"반대하다"},
+    {en:"fade",kr:"희미해지다, 점점 사라지다"},
+    {en:"execute",kr:"실행하다, 집행하다"},
+    {en:"console",kr:"위로하다"},
+    {en:"substitute",kr:"대리인, 대체물"},
+    {en:"ban",kr:"금지하다; 금지, 규제, 금지조치"},
+    {en:"discharge",kr:"(액체·기체 등을) 배출[방출]하다; (군대에서) 전역시키다; (병원에서) 퇴원시키다"},
+    {en:"reinforce",kr:"(생각·행동을) 강화하다; 증강하다, 보강하다"},
+    {en:"flesh",kr:"살, 살점; 육체, 육신; (과일 등의) 과육"},
+    {en:"abolish",kr:"(제도·법 등을) 폐지하다, 없애다"},
+    {en:"subscribe",kr:"(~을) 구독하다"},
+    {en:"petty",kr:"사소한, 시시콜콜한; 속 좁은, 쪼잔한"},
+    {en:"status",kr:"(사회적) 지위, 신분; 상태, 진행 상황"},
+    {en:"creep",kr:"살금살금 움직이다, 슬며시 다가가다"},
+    {en:"surrender",kr:"넘겨주다, 포기하다; (~에) 항복하다, 굴복하다"},
+    {en:"equality",kr:"동등함, 평등"},
+    {en:"tease",kr:"놀리다, 장난을 걸다"},
+    {en:"pesticide",kr:"살충제"},
+    {en:"ashore",kr:"해안가로, 육지로, 상륙하여"},
+    {en:"punctual",kr:"시간[기한]을 잘 지키는"},
+  ],
+  13: [
+    {en:"sphere",kr:"구, 둥근 물체; 영역, 분야"},
+    {en:"prevail",kr:"우세하다; (~을) 이기다; 널리 퍼지다, 팽배하다"},
+    {en:"illusion",kr:"환상, 환영, 착각"},
+    {en:"therapy",kr:"치료법, 요법"},
+    {en:"forbid",kr:"금지하다, 허락하지 않다"},
+    {en:"grip",kr:"꽉 잡다, 움켜쥐다; 사로잡다; 움켜쥠; 지배력, 영향력"},
+    {en:"dispute",kr:"이의를 제기하다, 문제 삼다; 이의제기, 분쟁, 갈등"},
+    {en:"stress",kr:"(중요해서) 강조하다; 스트레스를 주다"},
+    {en:"occupy",kr:"(공간·시간을) 차지하다; (군대 등이) 점령하다"},
+    {en:"carve",kr:"새기다, 깎다, 조각하다; 자르다, 썰다"},
+    {en:"radical",kr:"급진적인, 과감한; 철저한, 근본적인"},
+    {en:"browse",kr:"(상점·책 등을) 가볍게 둘러보다[구경하다]"},
+    {en:"sacrifice",kr:"희생하다; 포기하다; 희생"},
+    {en:"considerable",kr:"(정도가) 상당한; 꽤 많은"},
+    {en:"income",kr:"소득, (개인의) 수입"},
+    {en:"consequently",kr:"그 결과로, 따라서, 그래서"},
+    {en:"enormous",kr:"(크기·수량 등이) 막대한, 어마어마한"},
+    {en:"crucial",kr:"결정적인, 중대한"},
+    {en:"relate",kr:"(~와) 관련 있다; 관련짓다; (~에) 공감하다, 이해하다"},
+    {en:"proclaim",kr:"공식 발표하다, 선포[선언]하다"},
+    {en:"edible",kr:"먹어도 안전한, 식용 가능한"},
+    {en:"self-conscious",kr:"지나치게 사람들을 의식하는, 남의 시선을 지나치게 신경 쓰는"},
+    {en:"antipathy",kr:"강한 반감, 거부감"},
+    {en:"decent",kr:"점잖은, 품위 있는; 괜찮은, 제법 좋은"},
+    {en:"scan",kr:"(주의 깊게) 빠르게 훑어보다"},
+  ],
+  14: [
+    {en:"recreation",kr:"(재충전을 위한) 여가활동, 기분전환, 휴양"},
+    {en:"vacant",kr:"(공간이) 비어 있는, 사람이 없는; (일자리·직책이) 공석인"},
+    {en:"infect",kr:"감염시키다, 전염시키다"},
+    {en:"enterprise",kr:"기업(체), 회사; 사업, (도전적인) 프로젝트, 담대한 시도"},
+    {en:"obtain",kr:"(노력으로, 요청해서) 얻다, 획득하다"},
+    {en:"exceed",kr:"넘다, 초과하다"},
+    {en:"painstaking",kr:"공들인, 정성을 다하는, 세심한"},
+    {en:"cease",kr:"멈추다, 중단하다; 멎다, 그치다"},
+    {en:"distress",kr:"극심한 고통, 괴로움; 괴로움을 주다, 심적 스트레스를 주다"},
+    {en:"numerous",kr:"(수적으로) 많은, 무수한"},
+    {en:"pregnant",kr:"임신한"},
+    {en:"assign",kr:"(일·책임을) 맡기다; (사람·자원 등을) 배정하다, 지정하다"},
+    {en:"corporate",kr:"기업의, 법인의"},
+    {en:"farewell",kr:"작별 (인사), 고별; 안녕!, 잘 가시게!"},
+    {en:"supernatural",kr:"초자연적인, 불가사의한"},
+    {en:"peak",kr:"산꼭대기, 정상; 최고조"},
+    {en:"bulk",kr:"큰 부분; 대량, 큰 부피[덩어리]"},
+    {en:"sensation",kr:"(신체적) 감각; (불현듯 엄습하는) 강렬한 느낌"},
+    {en:"expand",kr:"확장하다, 넓히다; 팽창하다"},
+    {en:"bore",kr:"지루하게 하다"},
+    {en:"haste",kr:"급함, 서두름"},
+    {en:"snore",kr:"코를 골다"},
+    {en:"stare",kr:"뚫어지게 바라보다, 응시하다; 뚫어지게 봄, 응시"},
+    {en:"awaken",kr:"(잠에서) 깨다; (잠을) 깨우다; (잠재된 무엇을) 일깨우다"},
+    {en:"dare",kr:"감히 ~할 엄두를 내다, …에게 (~해보라고) 도발하다"},
+  ],
+  15: [
+    {en:"stand in line",kr:"줄서다"},
+    {en:"stick to",kr:"고수하다, 끝까지 해내다, 약속을 지키다"},
+    {en:"rob A of B",kr:"A에게서 B를 훔치다[앗아가다]"},
+    {en:"die of",kr:"~으로 죽다"},
+    {en:"turn to",kr:"~을 좋아하게 되다; 호감이 생기다"},
+    {en:"take care of",kr:"~을 돌보다; 알아서 처리하다"},
+    {en:"make fun of",kr:"~을 놀리다, 비웃다"},
+    {en:"tell the difference",kr:"(~의) 차이를 알다"},
+    {en:"think of",kr:"~을 생각하다, 떠올리다"},
+    {en:"tell a story/lie/joke",kr:"얘기를/거짓말을/농담을 하다"},
+    {en:"can't stand",kr:"~을 참을[견딜] 수 없다"},
+    {en:"go out",kr:"밖으로 나가다; 외출하다"},
+    {en:"come to",kr:"의식이 돌아오다, 정신을 차리다; (생각·기억이) 떠오르다"},
+    {en:"tell the truth",kr:"진실을 말하다"},
+    {en:"turn out",kr:"~로 밝혀지다, 드러나다; 참석하다; 생산하다"},
+    {en:"stand still",kr:"가만히 움직이지 않고 서다"},
+    {en:"stand a chance",kr:"가능성이 있다"},
+    {en:"get rid of",kr:"(불필요한 것을) 없애다, 제거하다"},
+    {en:"find out",kr:"(사실을) 알게 되다, 밝혀내다"},
+    {en:"run out (of)",kr:"(~을) 다 써버리다, 바닥나다"},
+    {en:"take out",kr:"꺼내다, 데리고 나가다; 테이크아웃 하다"},
+    {en:"stand up for",kr:"~을 지키기 위해 나서다"},
+    {en:"go to",kr:"(어떤 상태에) 들어가다; ~에게 가다"},
+    {en:"stand trial",kr:"재판을 받다"},
+    {en:"can tell (if)",kr:"(~인지 아닌지) 알 수 있다, 분간할 수 있다"},
+    {en:"stand firm",kr:"단호한 태도를 보이다, 강하게 대처하다"},
+    {en:"dispose of",kr:"(주로 쓰레기·위험물 등을) 폐기하다, 처리하다"},
+    {en:"afraid of",kr:"~이 두려운"},
+    {en:"tired of",kr:"~에 지친"},
+    {en:"stand in someone's way",kr:"~의 길을 막다, 방해하다"},
+    {en:"figure out",kr:"(노력해서) 이해하다, 파악하다; 알아내다, 찾아내다"},
+    {en:"take to",kr:"~을 좋아하게 되다; 호감이 생기다"},
+    {en:"stand by",kr:"지지하다, 옆을 지키다"},
+  ],
+  16: [
+    {en:"counsel",kr:"조언, 상담; 조언하다, 상담하다"},
+    {en:"innovation",kr:"혁신; 새로운 발명[아이디어]"},
+    {en:"anonymous",kr:"익명의, 이름을 밝히지 않은"},
+    {en:"sniff",kr:"냄새를 킁킁 맡다; 코를 훌쩍이다; 냄새, (슬쩍 풍기는) 기색"},
+    {en:"gene",kr:"유전자"},
+    {en:"sarcastic",kr:"(말투·의도가) 비꼬는, 빈정대는"},
+    {en:"solitary",kr:"혼자의, 단독의; 고독한, 외로운"},
+    {en:"lease",kr:"임대차 계약, 임차권; (땅·집·물건 등을) 임대하다, 임차하다"},
+    {en:"indict",kr:"정식 고발하다, 기소하다"},
+    {en:"binge-watch",kr:"(영상물을) 몰아보다, 정주행하다"},
+    {en:"commodity",kr:"(세계 각국이 대량 거래하는 농산물, 광물 등의) 원자재 상품; 귀중한 자원"},
+    {en:"abuse",kr:"학대, 착취; 남용, 악용; 남용하다, 악용하다"},
+    {en:"oral",kr:"입의, 구강의; (글이 아닌) 말로 하는, 구술의"},
+    {en:"resign",kr:"사직하다, 직책에서 물러나다"},
+    {en:"recipient",kr:"(상·편지·혜택 등을) 받는 사람"},
+    {en:"tolerate",kr:"(불편하거나 짜증나는 것을) 참다, 견디다; 허용하다, 존중하다"},
+    {en:"prohibit",kr:"(법·규칙으로) 금지하다; (상황이) 못하게 하다, 방해하다"},
+    {en:"frank",kr:"솔직한, 숨김없는"},
+    {en:"eliminate",kr:"(불필요한 것·문제·장애물을) 제거하다, 없애다; 배제하다"},
+    {en:"medieval",kr:"중세의"},
+    {en:"distribute",kr:"나눠주다, 배포하다; 유통시키다, 배급하다"},
+    {en:"illustrate",kr:"(알기 쉽게) 설명하다, (그림·예시로) 보여주다"},
+    {en:"pitch",kr:"(상품·아이디어를 팔기 위한) 제안, 홍보; 제안하다; 던지다"},
+    {en:"upcoming",kr:"다가오는, 곧 있을"},
+    {en:"sink",kr:"가라앉다; 내려가다, 떨어지다"},
+  ],
+  17: [
+    {en:"pray",kr:"기도하다; 간절히 바라다, 빌다"},
+    {en:"corrupt",kr:"부패한, 타락한"},
+    {en:"network",kr:"(사람·통신·도로 등의) 연결망, 인맥, 방송망"},
+    {en:"potential",kr:"잠재적인, 가능성 있는; 가능성, 잠재력"},
+    {en:"vital",kr:"(생명에) 절대적으로 필요한; 매우 중요한"},
+    {en:"multiple",kr:"여러 개의, 복수의"},
+    {en:"rehearse",kr:"연습하다, 예행 연습하다"},
+    {en:"facilitate",kr:"용이하게 하다, 원활하게 하다, 촉진하다"},
+    {en:"wipe",kr:"(깨끗이) 닦다, 훔치다; 지우다, 없애다"},
+    {en:"smash",kr:"박살나다; 세게 충돌하다; 박살내다, 완전히 깨뜨리다"},
+    {en:"overdue",kr:"연체된, 기한이 초과된; 너무 늦어진"},
+    {en:"justice",kr:"정의, 공정; 법의 심판; 사법"},
+    {en:"appoint",kr:"임명하다"},
+    {en:"sober",kr:"술 취하지 않은, 정신이 말짱한"},
+    {en:"input",kr:"의견, 조언; (컴퓨터의) 입력 데이터"},
+    {en:"bitter",kr:"(맛이) 쓴; (감정이) 분한, 쓰라린; (경험이) 괴로운, 혹독한"},
+    {en:"distort",kr:"(사실을) 왜곡하다; (형태를) 비틀다, 일그러뜨리다"},
+    {en:"superb",kr:"최고의, 매우 훌륭한"},
+    {en:"session",kr:"수업[훈련; 치료] 시간; (국회의) 회기"},
+    {en:"shortage",kr:"(식량, 물, 인력, 자원 등의) 부족"},
+    {en:"elaborate",kr:"자세히[상세하게] 설명하다; 정교하게 만들어진, 공들여 만든"},
+    {en:"reside",kr:"살다, 거주하다"},
+    {en:"transfer",kr:"옮기다, 이동하다, 전학[전근]시키다; 이동, 이전"},
+    {en:"compensate",kr:"(손실·피해에 대해) 보상[배상]하다; 상쇄하다, 메우다"},
+    {en:"evaluate",kr:"(가치·성과·품질을) 평가하다, 검토하다"},
+  ],
+  18: [
+    {en:"restrict",kr:"제한하다, 제약하다"},
+    {en:"digest",kr:"소화하다; 이해하다; 받아들이다"},
+    {en:"fatal",kr:"죽음을 초래하는; 치명적인, 중대한"},
+    {en:"auction",kr:"경매; 경매에 붙이다"},
+    {en:"mainstream",kr:"주류, 대세; 주류의, 대세의"},
+    {en:"barrier",kr:"장벽, 울타리; 장애, 걸림돌"},
+    {en:"gain",kr:"(노력으로) 얻다, 획득하다; 증가하다, 늘어나다; 이익, 이득; 증가"},
+    {en:"revive",kr:"되살리다; 회복시키다; 부활시키다"},
+    {en:"sweep",kr:"청소하다, 쓸다; 휩쓸고 지나가다, 덮치다; 압도하다, 싹쓸이하다"},
+    {en:"navigate",kr:"(탈것을) 운항하다, 항해하다; (어떤 장소에서) 길을 찾아가다"},
+    {en:"coordinate",kr:"(여러 요소·조직이) 조화를 이루도록 조율[조직]하다"},
+    {en:"beloved",kr:"깊이 사랑 받는, 소중한"},
+    {en:"provoke",kr:"자극하다, 유발하다; 불러일으키다"},
+    {en:"obey",kr:"(명령·법·규칙 등을) 따르다, 순종하다"},
+    {en:"inject",kr:"주사하다; (에너지·자금 등을) 투입하다"},
+    {en:"command",kr:"명령하다, 지휘하다; 명령; 지휘권"},
+    {en:"excess",kr:"과잉, 과도; (수량상) 과잉의, 초과의"},
+    {en:"sponsor",kr:"후원하다; (행사·활동의) 재정적 후원자, 스폰서"},
+    {en:"loan",kr:"(은행의) 대출, 대출금; 대출해주다, 빌려주다"},
+    {en:"output",kr:"생산량, 산출물"},
+    {en:"perspective",kr:"시각, 관점, 입장"},
+    {en:"phase",kr:"단계, 국면, 시기; 단계적으로 시행하다"},
+    {en:"hazard",kr:"(건강·안전·환경 상의) 잠재적 위험요소"},
+    {en:"dedicate",kr:"(시간·노력 등을) 바치다, 헌신하다; 헌정하다"},
+    {en:"treaty",kr:"조약, 협정"},
+  ],
+  19: [
+    {en:"climax",kr:"절정, 최고조"},
+    {en:"estate",kr:"유산, 재산; 대저택이 있는 땅, 부지"},
+    {en:"preach",kr:"설교하듯 훈계하다, 강하게 주장하다; (종교) 설교하다"},
+    {en:"valid",kr:"근거가 있는, 타당한; 유효한, 법적 효력이 있는"},
+    {en:"supplement",kr:"보충자료; 보충 영양제; 보충하다, 보완하다"},
+    {en:"nevertheless",kr:"그럼에도 불구하고"},
+    {en:"gamble",kr:"도박하다; ~을 위험하게 걸다"},
+    {en:"defect",kr:"흠, 결함"},
+    {en:"analyze",kr:"분석하다, 정밀히 조사하다"},
+    {en:"construction",kr:"건설, 공사; 건축물; 구성, 구조"},
+    {en:"approximate",kr:"대략의, 근사치의"},
+    {en:"enforce",kr:"(법·규율 등을) 시행[집행]하다, 강제하다"},
+    {en:"wreck",kr:"(심하게 파손된) 잔해, 사고 차량[배]"},
+    {en:"flexible",kr:"잘 구부러지는, 유연한; 융통성 있는"},
+    {en:"mute",kr:"무언의, 소리 나지 않는"},
+    {en:"instinct",kr:"본능, 직감"},
+    {en:"cosmos",kr:"우주"},
+    {en:"trace",kr:"추적하다, 뒤쫓다; (기원을) 거슬러 올라가다; 자취, 흔적"},
+    {en:"resent",kr:"(부당함, 무례함에) 분개하다, 매우 불쾌해하다"},
+    {en:"internal",kr:"내부의; 내면의; 체내의; 국내의"},
+    {en:"solemn",kr:"엄숙한, 진지하고 경건한"},
+    {en:"sanitary",kr:"위생의; 위생적인, 청결한"},
+    {en:"bet",kr:"(도박·내기 등에) 돈을 걸다, 내기하다; 장담[확신]하다"},
+    {en:"faint",kr:"희미한, 어렴풋한; 실신하다, 기절하다"},
+    {en:"dismiss",kr:"해고하다; (의견·제안 등을) 묵살하다; 기각하다; (모임 등을) 해산하다"},
+  ],
+  20: [
+    {en:"assertive",kr:"자기 생각[권리·감정]을 분명히 표현할 줄 아는, 당당한"},
+    {en:"hard-working",kr:"근면한, 성실한"},
+    {en:"sensitive",kr:"감수성이 풍부한; 예민한"},
+    {en:"competitive",kr:"경쟁심이 강한, 지기 싫어하는; 경쟁력 있는"},
+    {en:"moody",kr:"변덕스러운, 감정 기복이 심한"},
+    {en:"immature",kr:"미숙한, 철이 없는"},
+    {en:"enthusiastic",kr:"열정적인, 열의 넘치는"},
+    {en:"pessimistic",kr:"비관적인, 잘 안될 거라고 생각하는"},
+    {en:"ambitious",kr:"야망이[포부가] 있는, 큰 꿈을 가진"},
+    {en:"reasonable",kr:"합리적인, 이성적인"},
+    {en:"emotional",kr:"감수성이 풍부한, 감정적인"},
+    {en:"reliable",kr:"믿음직한, 든든한"},
+    {en:"courteous",kr:"정중한, 공손한, 예의 바른"},
+    {en:"easy-going",kr:"느긋한, 여유로운"},
+    {en:"introverted",kr:"내성적인"},
+    {en:"optimistic",kr:"(미래에 대해) 낙천적인, 잘될 거라고 믿는"},
+    {en:"reserved",kr:"과묵한, 말수가 적은, 자기표현을 잘 하지 않는"},
+    {en:"social",kr:"사교적인, 사람들과 잘 어울리는"},
+    {en:"decisive",kr:"우유부단하지 않은, 결단력 있는, 과감한"},
+    {en:"independent",kr:"자주적인, 남에게 의존하지 않는"},
+    {en:"loyal",kr:"의리 있는, 변치 않고 지지하는"},
+    {en:"considerate",kr:"속이 깊은, 배려심이 있는"},
+    {en:"impulsive",kr:"충동적인"},
+    {en:"confident",kr:"자신감 있는, 자신하는"},
+    {en:"creative",kr:"창의적인, 새로운 무언가를 잘 만들어내는"},
+    {en:"original",kr:"독창적인, 남들과 다른 방식으로 생각하고 행동하는"},
+    {en:"gullible",kr:"잘 속는, 순진한"},
+    {en:"aggressive",kr:"공격적인, 다소 과격한"},
+    {en:"determined",kr:"결단력 있는, 해내고야 마는"},
+    {en:"ruthless",kr:"냉혹한, 인정사정없는, 매몰찬"},
+    {en:"extroverted",kr:"외향적인"},
+  ],
+  21: [
+    {en:"expel",kr:"퇴출하다, 제명하다; 강제 추방하다"},
+    {en:"irritate",kr:"짜증나게 하다, 자극하다"},
+    {en:"fulfill",kr:"(의무 등을) 다하다; (요건을) 충족시키다; (꿈·목표를) 실현하다"},
+    {en:"cooperate",kr:"협력하다, 협조하다"},
+    {en:"theory",kr:"이론, 학문적 설명 체계; 가설, 추측"},
+    {en:"associate",kr:"연관 짓다, 연상하다; 동료, 파트너"},
+    {en:"humanity",kr:"인류; 인간성, 인류애"},
+    {en:"dim",kr:"(빛이) 어두침침한, 흐릿한; (기억이) 희미한; (밝기를) 어둡게 하다"},
+    {en:"misuse",kr:"남용, 오용; 남용하다, 오용하다"},
+    {en:"frontier",kr:"국경, 국경 지역; (지식·기술의) 미개척 영역, 최첨단"},
+    {en:"stun",kr:"충격에 빠뜨리다, 말문이 막히게 하다; 감탄하게 하다"},
+    {en:"enlarge",kr:"크기를 키우다, 확대하다"},
+    {en:"portion",kr:"(전체 중) 일부; (음식의) 1인분"},
+    {en:"nutrition",kr:"영양, 영양 섭취"},
+    {en:"detach",kr:"떼어내다, 분리하다; 거리를 두다"},
+    {en:"gender",kr:"성, 성별"},
+    {en:"breed",kr:"번식시키다, 사육하다; 번식하다; 품종"},
+    {en:"nurture",kr:"(성장하도록) 보살피다, 정성껏 기르다; 양육, 보살핌"},
+    {en:"respective",kr:"각각의"},
+    {en:"component",kr:"부품, 구성 요소"},
+    {en:"refuge",kr:"피난처, 도피처"},
+    {en:"blast",kr:"폭발; 거세게 몰아침, 돌풍; 신나고 즐거운 시간"},
+    {en:"compromise",kr:"타협; 타협하다; (품질·원칙 등을) 해치다; 위태롭게 하다"},
+    {en:"pose",kr:"(위협·문제 등을) 제기하다, 야기하다; 자세[포즈]를 취하다"},
+    {en:"keen",kr:"좋아하는; 간절히 원하는; (감각·통찰이) 예리한; (괴로움·경쟁 등이) 심한"},
+  ],
+  22: [
+    {en:"bind",kr:"묶다; 결속하다"},
+    {en:"comprehensive",kr:"포괄적인, 종합적인"},
+    {en:"nuisance",kr:"짜증을 유발하는 것[사람], 골칫거리"},
+    {en:"liberal",kr:"(정치) 자유주의의, 진보적인; 관대한, 개방적인"},
+    {en:"outdated",kr:"구식의, 시대에 뒤떨어진"},
+    {en:"section",kr:"부분, 구역; (책·문서 등의) 단원, 항"},
+    {en:"epic",kr:"대서사시적인, (스케일이) 장대한, 웅장한; 서사시"},
+    {en:"occasionally",kr:"가끔, 이따금씩"},
+    {en:"crack",kr:"금이 가다, 깨지다; 갈라진 틈, 금"},
+    {en:"resist",kr:"저항하다, 맞서다; 이겨내다, 견디다, 참다"},
+    {en:"diagram",kr:"도표"},
+    {en:"definite",kr:"확정된; 분명한, 명확한"},
+    {en:"acquire",kr:"(노력·경험으로) 얻다, 배우다, 습득하다"},
+    {en:"soothe",kr:"달래다, 진정시키다; (통증을) 완화하다"},
+    {en:"courtesy",kr:"예의, 공손함; 호의, 배려"},
+    {en:"correspond",kr:"서로 맞다[일치하다]; 서신을 주고받다; (~에) 해당[상응]하다"},
+    {en:"presume",kr:"(증거 없이) 추정하다, 가정하다, 넘겨짚다"},
+    {en:"phenomenon",kr:"(자연적인) 현상; 경이로운 인물[사건]"},
+    {en:"highlight",kr:"강조하다, 눈에 띄게 하다; 하이라이트, 최고의 순간"},
+    {en:"refined",kr:"정제된; 세련된, 교양 있는; 개선된, 다듬어진"},
+    {en:"slam",kr:"(문 등을) 쾅 닫다; 쾅 하는 소리"},
+    {en:"weave",kr:"(천·직물을) 짜다; (이야기를) 엮어내다, 만들다"},
+    {en:"invade",kr:"(다른 나라를) 침략하다, 공격하다; (사생활·공간 등을) 침해하다"},
+    {en:"translate",kr:"번역하다; (형식·기능 등을) 바꾸다, 전환하다"},
+    {en:"flatter",kr:"칭찬하다, 아부하다; (옷 등이) 잘 어울리다, 돋보이게 하다"},
+  ],
+  23: [
+    {en:"subsequently",kr:"그 후에, 이어서; 그에 따라서"},
+    {en:"naked",kr:"아무 것도 걸치지 않은; 있는 그대로의, 꾸밈없는"},
+    {en:"tap",kr:"가볍게 두드리다; (자원 등을) 활용[이용]하다; 수도꼭지"},
+    {en:"grease",kr:"기름, 윤활유; 기름칠하다"},
+    {en:"habitual",kr:"습관적인, 상습적인"},
+    {en:"gossip",kr:"소문, 남에 대한 뒷담화; 남 얘기하다, 험담하다"},
+    {en:"assist",kr:"옆에서 돕다, 거들다"},
+    {en:"customize",kr:"사용자에게 맞추다, 개인화하다"},
+    {en:"controversy",kr:"논란, 논란거리"},
+    {en:"disable",kr:"(신체적으로) 장애를 입히다; (기계 장치 등의) 작동을 멈추다"},
+    {en:"exaggerate",kr:"과장하다, 부풀려 말하다"},
+    {en:"overtake",kr:"따라잡다, 앞지르다"},
+    {en:"regardless",kr:"상관없이, 개의치 않고; 무조건"},
+    {en:"feminine",kr:"여성의, 여성스러운"},
+    {en:"vertical",kr:"수직의, 세로의"},
+    {en:"invest",kr:"투자하다; (시간·노력 등을) 쏟다, 들이다"},
+    {en:"urgent",kr:"긴급한, 시급한"},
+    {en:"consist",kr:"(~로) 이루어지다, 구성되다; (~에) 있다"},
+    {en:"stock",kr:"재고(품), 비축분; 비축하다, (재고를) 채우다"},
+    {en:"pace",kr:"(걷는) 속도; 걸음, 보폭"},
+    {en:"bachelor",kr:"미혼 남성"},
+    {en:"eternal",kr:"영원한, 끝없는"},
+    {en:"momentary",kr:"순간의, 일시적인, 잠깐의"},
+    {en:"sparkle",kr:"빛나다, 반짝이다"},
+    {en:"appearance",kr:"출현, 등장; 외모, 겉모습"},
+  ],
+  24: [
+    {en:"adore",kr:"무척 아끼다; 무척 좋아하다"},
+    {en:"survey",kr:"설문조사, 여론조사; 의견을 묻다; 전체적으로 살펴보다, 둘러보다"},
+    {en:"typical",kr:"전형적인"},
+    {en:"diminish",kr:"(양·정도·세기 등이) 줄어들다; 줄이다; (가치를) 떨어뜨리다"},
+    {en:"anticipate",kr:"예상하다, 기대하다"},
+    {en:"exclude",kr:"배제하다, 제외하다"},
+    {en:"retail",kr:"소매, 소매업; 소매로 팔다"},
+    {en:"susceptible",kr:"(외부 자극에) 취약한, 영향 받기 쉬운"},
+    {en:"strip",kr:"(옷·껍질 등을) 벗기다, 제거하다; 털어가다; 박탈하다"},
+    {en:"persist",kr:"(문제 등이) 지속되다; (끈질기게) 계속하다, 고집하다"},
+    {en:"countless",kr:"셀 수 없이 많은, 무수히 많은"},
+    {en:"disgrace",kr:"불명예, 망신; 망신시키다, 창피를 주다"},
+    {en:"examine",kr:"면밀히 조사[검토]하다; 검사하다, 진찰하다"},
+    {en:"witness",kr:"목격자, 증인"},
+    {en:"plot",kr:"줄거리; 음모, 모의"},
+    {en:"illuminate",kr:"환하게 밝히다; 이해하기 쉽게 하다, 설명하다"},
+    {en:"alternative",kr:"대안; 대안이 되는, 대체의"},
+    {en:"conduct",kr:"(조사·연구 등을) 실시하다"},
+    {en:"ray",kr:"한 줄기 빛; 작은 가능성"},
+    {en:"tremendous",kr:"(양·정도·크기가) 막대한, 어마어마한"},
+    {en:"diameter",kr:"지름"},
+    {en:"cultivate",kr:"경작하다, 재배하다; 계발하다, 기르다"},
+    {en:"install",kr:"설치하다"},
+    {en:"satire",kr:"풍자, 해학"},
+    {en:"ensure",kr:"확실히 하다, 보장하다"},
+  ],
+  25: [
+    {en:"raise",kr:"(~을) 위로 올리다; (가격 등을) 높이다; (아이를) 키우다"},
+    {en:"lend",kr:"(주어가 물건을) 빌려주다"},
+    {en:"imply",kr:"(말하는 사람이) 넌지시 뜻하다, 암시하다"},
+    {en:"lie",kr:"(스스로) 눕다, 놓여 있다"},
+    {en:"lay",kr:"눕히다, 놓다"},
+    {en:"conserve",kr:"(자원을) 쓰되 아껴 쓰다, 절약하다; 지속되도록 보호하다"},
+    {en:"classical",kr:"고대의, 고전의, 클래식 음악의"},
+    {en:"insure",kr:"~에 보험을 들다"},
+    {en:"say",kr:"~을 말하다"},
+    {en:"assure",kr:"(누구를) 안심시키다, 약속해주다"},
+    {en:"ensure",kr:"(어떻게 되도록) 책임지고 조치하다; 보장하다"},
+    {en:"rise",kr:"일어서다; 오르다, 상승하다"},
+    {en:"look",kr:"(의도적으로) 바라보다; 관람하다, 구경하다"},
+    {en:"preserve",kr:"(본래의 모습을 잃지 않게) 보존하다, (음식을) 상하지 않게 저장하다"},
+    {en:"tell",kr:"~에게 말하다"},
+    {en:"bring",kr:"(말하는 사람에게로) 가지고 오다"},
+    {en:"economic",kr:"경제의, 경제에 관한"},
+    {en:"speak",kr:"(공적인 상황에서) 말하다, 연설하다"},
+    {en:"borrow",kr:"(주어가 물건을) 빌려가다"},
+    {en:"rob",kr:"(사람·장소를) 털다"},
+    {en:"classic",kr:"걸작의, 명작의, 아주 훌륭한; 전형적인"},
+    {en:"economical",kr:"돈을 절약할 수 있는, 경제적인"},
+    {en:"win",kr:"(경쟁자가 아닌 시합, 경기를) 이기다; (메달을) 쟁취하다"},
+    {en:"infer",kr:"(듣는 사람이 정보나 단서로) 추론하다, (사실로부터) 도출하다"},
+    {en:"see",kr:"(시야에 있어서) 보다, 눈에 들어오다"},
+    {en:"historic",kr:"역사의, 역사와 관련된"},
+    {en:"beat/defeat",kr:"(경쟁자를) 이기다/패배시키다"},
+    {en:"hear",kr:"(귀에 들려와서) 듣다, 들리다"},
+    {en:"take",kr:"(말하는 사람으로부터) 가지고 가다"},
+    {en:"presume",kr:"(근거는 없지만 어떤 전제 하에) 추정하다"},
+    {en:"listen",kr:"(주의해서) 듣다, 귀 기울이다"},
+    {en:"assume",kr:"(근거 없이) 단정하다"},
+    {en:"talk",kr:"(격의 없이, 사적으로) 대화하다, 잡담하다"},
+    {en:"historical",kr:"역사의, 역사와 관련된"},
+    {en:"steal",kr:"(돈·물건을) 훔치다"},
+  ]
+};
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let selectedDay = null;
+let selectedMode = null;
+let currentWords = [];
+let currentIndex = 0;
+let flashDirection = 'kr'; // kr→en or en→kr
+let typeDirection = 'kr';
+let isFlipped = false;
+let score = { correct: 0, wrong: 0 };
+let wrongWords = [];
+let hintUsed = false;
+let skipped = 0;
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init() {
+  const grid = document.getElementById('day-grid');
+  for (let d = 1; d <= 25; d++) {
+    const btn = document.createElement('button');
+    btn.className = 'day-btn';
+    btn.textContent = `Day ${d.toString().padStart(2,'0')}`;
+    btn.onclick = () => selectDay(d, btn);
+    grid.appendChild(btn);
+  }
+}
+
+function selectDay(day, btn) {
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedDay = day;
+  checkStartable();
+}
+
+function selectMode(mode) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('mode-'+mode).classList.add('selected');
+  selectedMode = mode;
+  checkStartable();
+}
+
+function checkStartable() {
+  document.getElementById('start-btn').disabled = !(selectedDay && selectedMode);
+}
+
+function startStudy(words) {
+  currentWords = words ? [...words] : [...VOCAB[selectedDay]];
+  shuffle(currentWords);
+  currentIndex = 0;
+  score = {correct:0, wrong:0};
+  wrongWords = [];
+  skipped = 0;
+
+  hide('screen-select');
+  if (selectedMode === 'flash') {
+    show('screen-flash');
+    flashDirection = 'kr';
+    updateDirButtons();
+    loadFlashCard();
+  } else {
+    show('screen-type');
+    typeDirection = 'kr';
+    updateTypeDirButtons();
+    loadTypeQuestion();
+  }
+}
+
+// ─────────────────────────────────────────────
+// FLASHCARD
+// ─────────────────────────────────────────────
+function loadFlashCard() {
+  isFlipped = false;
+  const card = document.getElementById('flashcard');
+  card.classList.remove('flipped');
+
+  const w = currentWords[currentIndex];
+  updateFlashProgress();
+
+  const frontLabel = document.getElementById('front-label');
+  const frontContent = document.getElementById('front-content');
+  const backContent = document.getElementById('back-content');
+  const backHint = document.getElementById('back-hint');
+  const navInfo = document.getElementById('flash-nav-info');
+
+  navInfo.textContent = `Day ${selectedDay} · ${currentWords.length}개 단어 (WW5)`;
+
+  if (flashDirection === 'kr') {
+    frontLabel.textContent = '한국어 뜻';
+    frontContent.className = 'card-content';
+    frontContent.textContent = w.kr;
+    backContent.className = 'card-content en';
+    backContent.textContent = w.en;
+    backHint.textContent = '';
+  } else {
+    frontLabel.textContent = '영단어';
+    frontContent.className = 'card-content en';
+    frontContent.textContent = w.en;
+    backContent.className = 'card-content';
+    backContent.textContent = w.kr;
+    backHint.textContent = '';
+  }
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('flashcard').classList.toggle('flipped', isFlipped);
+}
+
+function markCard(knew) {
+  if (knew) { score.correct++; }
+  else { score.wrong++; wrongWords.push(currentWords[currentIndex]); }
+  nextFlash();
+}
+
+function nextFlash() {
+  currentIndex++;
+  if (currentIndex >= currentWords.length) {
+    showResult();
+  } else {
+    loadFlashCard();
+  }
+}
+
+function shuffleAndRestart() {
+  shuffle(currentWords);
+  currentIndex = 0;
+  score = {correct:0, wrong:0};
+  wrongWords = [];
+  loadFlashCard();
+}
+
+function updateFlashProgress() {
+  const pct = ((currentIndex) / currentWords.length) * 100;
+  document.getElementById('flash-progress').style.width = pct + '%';
+  document.getElementById('flash-counter').textContent = `${currentIndex + 1} / ${currentWords.length}`;
+}
+
+function setDirection(dir) {
+  flashDirection = dir;
+  document.getElementById('dir-kr').classList.toggle('active', dir === 'kr');
+  document.getElementById('dir-en').classList.toggle('active', dir === 'en');
+  loadFlashCard();
+}
+
+function updateDirButtons() {
+  document.getElementById('dir-kr').classList.add('active');
+  document.getElementById('dir-en').classList.remove('active');
+}
+
+// ─────────────────────────────────────────────
+// TYPING TEST
+// ─────────────────────────────────────────────
+function loadTypeQuestion() {
+  hintUsed = false;
+  const w = currentWords[currentIndex];
+
+  const pct = (currentIndex / currentWords.length) * 100;
+  document.getElementById('type-progress').style.width = pct + '%';
+  document.getElementById('type-counter').textContent = `${currentIndex + 1} / ${currentWords.length}`;
+  document.getElementById('type-nav-info').textContent = `Day ${selectedDay} · ${currentWords.length}개 단어`;
+
+  const promptLabel = document.getElementById('type-prompt-label');
+  const promptText = document.getElementById('type-prompt-text');
+
+  if (typeDirection === 'kr') {
+    promptLabel.textContent = '한국어 뜻 → 영단어 입력';
+    promptText.className = 'prompt-text';
+    promptText.textContent = w.kr;
+  } else {
+    promptLabel.textContent = '영단어 → 한국어 입력';
+    promptText.className = 'prompt-text en';
+    promptText.textContent = w.en;
+  }
+
+  const input = document.getElementById('type-input');
+  input.value = '';
+  input.className = 'type-input';
+  input.placeholder = typeDirection === 'kr' ? '영단어를 입력하세요...' : '한국어 뜻을 입력하세요...';
+  input.focus();
+
+  setFeedback('', '');
+}
+
+function checkAnswer() {
+  const input = document.getElementById('type-input');
+  const userAns = input.value.trim().toLowerCase();
+  if (!userAns) return;
+
+  const w = currentWords[currentIndex];
+  const correct = typeDirection === 'kr' ? w.en.toLowerCase() : w.kr.toLowerCase();
+
+  // 정답 후보 목록: 세미콜론·쉼표로 구분된 여러 표현을 각각 허용
+  // 단, 각 후보는 공백 정규화 후 완전 일치만 허용 (부분 일치 금지)
+  const normalize = s => s.replace(/\s+/g, ' ').trim();
+  const candidates = correct
+    .split(/[;,]/)
+    .map(s => normalize(s))
+    .filter(s => s.length > 0);
+
+  const userNorm = normalize(userAns);
+  const isCorrect = candidates.some(c => c === userNorm);
+
+  if (isCorrect) {
+    score.correct++;
+    input.className = 'type-input correct-anim';
+    setFeedback('✓ 정답이에요! 🎉', 'correct');
+    setTimeout(() => nextType(), 900);
+  } else {
+    score.wrong++;
+    wrongWords.push(w);
+    input.className = 'type-input wrong-anim';
+    setFeedback(`✗ 정답: ${typeDirection === 'kr' ? w.en : w.kr}`, 'wrong');
+    setTimeout(() => nextType(), 1600);
+  }
+}
+
+function nextType() {
+  currentIndex++;
+  if (currentIndex >= currentWords.length) {
+    showResult();
+  } else {
+    loadTypeQuestion();
+  }
+}
+
+function skipWord() {
+  skipped++;
+  wrongWords.push(currentWords[currentIndex]);
+  setFeedback(`→ 건너뜀: ${currentWords[currentIndex].en}`, 'wrong');
+  setTimeout(() => nextType(), 800);
+}
+
+// 띄어쓰기 구조를 유지하며 마스킹하는 헬퍼
+function maskAnswer(answer, revealLen) {
+  const words = answer.split(' ');
+  let revealed = revealLen;
+  const masked = words.map(word => {
+    if (revealed <= 0) {
+      return '_'.repeat(word.length);
+    } else if (revealed >= word.length) {
+      revealed -= word.length;
+      return word;
+    } else {
+      const shown = word.slice(0, revealed);
+      const hidden = '_'.repeat(word.length - revealed);
+      revealed = 0;
+      return shown + hidden;
+    }
+  });
+  return masked.join(' ');
+}
+
+function showFirstLetter() {
+  const w = currentWords[currentIndex];
+  const answer = typeDirection === 'kr' ? w.en : w.kr;
+  const hintBody = maskAnswer(answer, 1);
+  const el = document.getElementById('type-feedback');
+  el.className = 'feedback hint';
+  el.textContent = '🔤 첫 글자: ' + hintBody;
+  const input = document.getElementById('type-input');
+  if (!input.value) {
+    input.value = answer[0];
+    input.focus();
+    input.setSelectionRange(1, 1);
+  }
+}
+
+function showHint() {
+  const w = currentWords[currentIndex];
+  const answer = typeDirection === 'kr' ? w.en : w.kr;
+  const nonSpaceLen = answer.replace(/ /g, '').length;
+  const revealLen = Math.ceil(nonSpaceLen / 3);
+  const hintBody = maskAnswer(answer, revealLen);
+  const el = document.getElementById('type-feedback');
+  el.className = 'feedback hint';
+  el.textContent = '💡 힌트: ' + hintBody;
+}
+
+function setFeedback(msg, type) {
+  const el = document.getElementById('type-feedback');
+  if (!type || type === 'hidden') {
+    el.className = 'feedback hidden';
+    el.textContent = '';
+  } else {
+    el.className = 'feedback ' + type;
+    el.textContent = msg;
+  }
+}
+
+function handleTypeKey(e) {
+  if (e.key === 'Enter') checkAnswer();
+}
+
+function setTypeDirection(dir) {
+  typeDirection = dir;
+  document.getElementById('tdir-kr').classList.toggle('active', dir === 'kr');
+  document.getElementById('tdir-en').classList.toggle('active', dir === 'en');
+  loadTypeQuestion();
+}
+
+function updateTypeDirButtons() {
+  document.getElementById('tdir-kr').classList.add('active');
+  document.getElementById('tdir-en').classList.remove('active');
+}
+
+// ─────────────────────────────────────────────
+// RESULT
+// ─────────────────────────────────────────────
+function showResult() {
+  hide('screen-flash'); hide('screen-type');
+  show('screen-result');
+
+  const total = score.correct + score.wrong;
+  const pct = total > 0 ? Math.round((score.correct / total) * 100) : 0;
+
+  document.getElementById('result-score').textContent = pct + '%';
+
+  let msg, sub;
+  if (pct >= 90) { msg = '완벽해요! 🏆'; sub = `${total}개 중 ${score.correct}개 정답! 훌륭해요.`; }
+  else if (pct >= 70) { msg = '잘했어요! 👍'; sub = `${total}개 중 ${score.correct}개 정답. 조금만 더!`; }
+  else if (pct >= 50) { msg = '절반 성공! 💪'; sub = `${total}개 중 ${score.correct}개 정답. 다시 도전해봐요.`; }
+  else { msg = '더 연습해봐요! 📚'; sub = `${total}개 중 ${score.correct}개 정답. 파이팅!`; }
+
+  document.getElementById('result-msg').textContent = msg;
+  document.getElementById('result-sub').textContent = sub;
+
+  // wrong list
+  const uniqueWrong = [...new Map(wrongWords.map(w => [w.en, w])).values()];
+  if (uniqueWrong.length > 0) {
+    const wl = document.getElementById('wrong-list');
+    wl.style.display = 'block';
+    const items = document.getElementById('wrong-items');
+    items.innerHTML = uniqueWrong.map(w => `
+      <div class="wrong-item">
+        <span class="wrong-kr">${w.kr.length > 30 ? w.kr.slice(0,30)+'…' : w.kr}</span>
+        <span class="wrong-en">${w.en}</span>
+      </div>
+    `).join('');
+  }
+}
+
+function retryWrong() {
+  if (wrongWords.length === 0) { goHome(); return; }
+  const unique = [...new Map(wrongWords.map(w => [w.en, w])).values()];
+  hide('screen-result');
+  document.getElementById('wrong-list').style.display = 'none';
+  document.getElementById('wrong-items').innerHTML = '';
+  startStudy(unique);
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function goHome() {
+  hide('screen-flash'); hide('screen-type'); hide('screen-result');
+  show('screen-select');
+  document.getElementById('wrong-list').style.display = 'none';
+  document.getElementById('wrong-items').innerHTML = '';
+  document.getElementById('type-feedback').className = 'feedback hidden';
+}
+
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('SW registered'))
+      .catch(e => console.log('SW error', e));
+  });
+}
+</script>
+</body>
+</html>
